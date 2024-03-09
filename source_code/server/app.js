@@ -8,6 +8,7 @@ const WebSocket = require('ws');
 const WS_PORT = 2174 // Unity/React -- Node
 const NODE_PORT = 2175
 const RULES_PATH = "rules.txt"
+const REACT_ID = "$REACT$"
 
 // Rule checking
 const check = require('./rules');
@@ -45,36 +46,36 @@ const wss = new WebSocket.Server({ port: WS_PORT });
 var browserUser, unityUser;
 
 wss.on('connection', function connection(ws) {
-  if (ws._socket.remoteAddress.indexOf("127.0.0.1") > -1)
-  {
-    browserUser = ws
-    console.log("Browser connected")
-    browserUser.on('message', function incoming(message) {
 
-      // Forward message from browser to unity
+  // Setup to recieve messages from the clients
+  ws.on('message', function incoming(message) {
+    let msg = String(message)
+    
+    
+    // React (Clue giving) user sent the message
+    if (msg.startsWith(REACT_ID))
+    {
+      msg = msg.substring(REACT_ID.length) // Remove prefix from user
+      if (!browserUser) browserUser = ws
 
       //console.log("Browser sent: "+message)
-      if (unityUser)
-        unityUser.send(String(message));
-      // Echo back to client
-      
-    });
-  }
-  else
-  {
-    unityUser = ws
-    console.log("Unity connected")
-    unityUser.on('message', function incoming(message) {
-      let msg = String(message)
-      
-      // Forward message from unity to browser
 
-      //console.log("Unity Sent: "+ message)
-      if (browserUser)
+      if (unityUser) // fwd iff unity user is connected
       {
+        unityUser.send(String(message));
+      }
+
+    }
+    else // Unity player sent message
+    {
+      if (!unityUser) unityUser = ws
+      if (browserUser) // fwd iff browser user is online
+      {
+        //console.log("Unity Sent: "+ message)
+
         // Forward Y/N response to browser
         if (msg === 'Yes' || msg === 'No')
-          browserUser.send(msg);
+        browserUser.send(msg);
 
         else // They submitted an answer. Check it.
         {
@@ -86,16 +87,71 @@ wss.on('connection', function connection(ws) {
           browserUser.send(correct? "true" : "false") // Notify Unity user of success / fail
           unityUser.send(correct? "true" : "false") // Notify browser user of success / fail
         }
-        
+
       }
+
+    }
+
+    
+  });
+
+
+/**
+ * Old implementation had different listeners for each client.
+ * That was super clean, however, I had to assume the server host was the react client.
+ * The above attempts to use a single listener and identify the client through a payload prefix.
+ * If it doesn't work because two clients cannot share a listener (unlkely) i can refactor the below.
+ */
+
+  // if (ws._socket.remoteAddress.indexOf("127.0.0.1") > -1)
+  // {
+  //   browserUser = ws
+  //   console.log("Browser connected")
+  //   browserUser.on('message', function incoming(message) {
+
+  //     // Forward message from browser to unity
+
+  //     //console.log("Browser sent: "+message)
+  //     if (unityUser)
+  //       unityUser.send(String(message));
+      
+  //   });
+  // }
+  // else
+  // {
+  //   unityUser = ws
+  //   console.log("Unity connected")
+  //   unityUser.on('message', function incoming(message) {
+  //     let msg = String(message)
+      
+  //     // Forward message from unity to browser
+
+  //     //console.log("Unity Sent: "+ message)
+  //     if (browserUser)
+  //     {
+  //       // Forward Y/N response to browser
+  //       if (msg === 'Yes' || msg === 'No')
+  //         browserUser.send(msg);
+
+  //       else // They submitted an answer. Check it.
+  //       {
+  //         let parts = msg.split(',')
+  //         let a = parts[0]
+  //         let q = parts[1]
+  //         let correct = check(q, a) // Check if the submission is correct
+
+  //         browserUser.send(correct? "true" : "false") // Notify Unity user of success / fail
+  //         unityUser.send(correct? "true" : "false") // Notify browser user of success / fail
+  //       }
+        
+  //     }
         
       
-    });
+  //   });
 
-  }
+  // }
 
 
-  // Send a message to client when needed
   
 });
 

@@ -19,6 +19,7 @@ const Main = () => {
   const [ready, setReady] = useState(false)
   
   const [ws, setWs] = useState(null); // State to hold WebSocket instance
+  const REACT_ID = "$REACT$" // used to identify who sends the message
 
   // Ensure these match the ports in the Node server and the Unity client
   const SOCK_PORT = 2174;
@@ -139,7 +140,7 @@ const Main = () => {
     if (textInput.trim() !== '' && ws) {
       // Send the entered text to the WebSocket server
       // This message will be a full question, from control room, node will forward to unity
-      ws.send(textInput);
+      ws.send(REACT_ID + textInput);
       setLastQuestion(textInput);
       setTextInput('');
     }
